@@ -2,22 +2,22 @@
 # SPDX-License-Identifier: MIT
 # 版权所有 © 2020-2021 NKID00
 
-'''转换 CSV 格式的字典到 SQLite3 格式'''
+'''转换 CSV 格式的 ECDICT 到 SQLite3 格式'''
 
 from csv import DictReader
-from sqlite3 import connect, Cursor
-from os.path import exists
-from os import remove
+from sqlite3 import connect
 from time import time
 
+from util_gen import ask_input, ask_output, \
+    copy_item, set_item, insert_dict, insert_info
 
-def create_table(cursor: Cursor, table: str):
+
+def create_table(cursor, table: str):
     '''创建表'''
     cursor.execute(
         'CREATE TABLE %s (\n'
-        '    word        TEXT PRIMARY KEY -- 单词\n'
-        '                COLLATE NOCASE -- 比较时不区分大小写\n'
-        '                NOT NULL UNIQUE,\n'
+        '    word        TEXT PRIMARY KEY COLLATE NOCASE\n'
+        '                NOT NULL UNIQUE,    -- 单词\n'
         '    phonetic    TEXT DEFAULT(NULL), -- 音标\n'
         '    pos         TEXT DEFAULT(NULL), -- 词性比率\n'
         '    definition  TEXT DEFAULT(NULL), -- 英文定义\n'
@@ -40,28 +40,6 @@ def create_table(cursor: Cursor, table: str):
     )
 
 
-def copy_item(
-    target: dict, source: dict, key, target_key=None,
-    default=None, factory=None
-):
-    '''如果不是空的就复制'''
-    if target_key is None:
-        target_key = key
-    if key in source and source[key] != '':
-        if factory is not None:
-            target[target_key] = factory(source[key])
-        else:
-            target[target_key] = source[key]
-    elif default is not None:
-        target[target_key] = default
-
-
-def set_item(target: dict, source: tuple, key, value):
-    '''如果存在就赋值'''
-    if key in source:
-        target[key] = value
-
-
 def split_exchange(exchange: str) -> dict:
     '''分割词形变化表'''
     if exchange == '':
@@ -71,6 +49,7 @@ def split_exchange(exchange: str) -> dict:
 
 
 def row2dict(row) -> dict:
+    '''将 CSV 行转换为数据库行字典'''
     # 复制必需字段
     value = {'word': row['word']}
 
@@ -105,68 +84,70 @@ def row2dict(row) -> dict:
     return value
 
 
-def insert_dict(cursor: Cursor, value: dict):
-    '''向表中插入字典'''
-    keys, values = zip(*value.items())
-    cursor.execute(
-        'INSERT INTO ecdict (%s) VALUES (%s);' % (
-            ', '.join(keys),
-            ', '.join(('?',) * len(value))  # 生成对应数量的问号
-        ),
-        values
-    )
+def write_memory(c, csv_in):
+    '''写入内存'''
+    create_table(c, 'ecdict')
+    time_temp = time_start = time()
+    i = 0
+    for row in csv_in:
+        # if ' ' in row['word']:  # 跳过词组
+        #     continue
+        insert_dict(c, 'ecdict', row2dict(row))
+        i += 1
+        if i % 6000 == 0:
+            iw = i / 10000  # 已处理的单词数（万）
+            dt = time()  # 当前时间
+            v = 0.6 / (dt - time_temp)  # 速度（万每秒）
+            dt -= time_start  # 用时（秒）
+            print('%-60s' % (
+                '已处理 %.1f 万词条，用时 %.2f 秒，'
+                '%.2f 万每秒，剩余 %.2f 秒'
+                % (iw, dt, v, (432.5 - iw) / v)
+            ), end='\r')
+            time_temp = time()
+    print()
+
+
+def write_disk(c, file_name_out):
+    '''写入磁盘'''
+    c.execute('ATTACH DATABASE ? AS disk', (file_name_out,))
+    create_table(c, 'disk.ecdict')
+    c.execute('INSERT INTO disk.ecdict SELECT * FROM ecdict;')
+    insert_info(c, 'disk.info', {
+        'name':        'ECDICT',
+        'description': 'Free English to Chinese Dictionary Database.',
+        'link':        'https://github.com/skywind3000/ECDICT\n'
+                       'https://github.com/skywind3000/ECDICT-ultimate',
+        'version':     'Ultimate Database',
+        'time':        1526439580,  # 2018-05-16T10:59:40Z
+        'author':      'skywind3000',
+        'license':     'MIT License',
+        'program':     'ecdict.py'
+    })
 
 
 def main():
     '''入口点'''
-    file_name_in = input('输入(ultimate.csv): ')
-    if not exists(file_name_in):
-        print('输入文件不存在。')
-        return
+    file_name_in = ask_input('ultimate.csv')
+    if file_name_in is None:
+        raise KeyboardInterrupt
     with open(file_name_in, 'r', encoding='utf8', newline='') as file_in:
         csv_in = DictReader(file_in)
-        file_name_out = input('输出: ')
-        if exists(file_name_out):
-            if input('输出文件已存在，覆盖？(y/n): ') == 'y':
-                remove(file_name_out)
-            else:
-                return
-
-        print('正在写入内存... ')
+        file_name_out = ask_output()
+        if file_name_out is None:
+            raise KeyboardInterrupt
         with connect(':memory:', isolation_level=None) as conn_out:
             c = conn_out.cursor()
-            c.execute('ATTACH DATABASE ? AS disk', (file_name_out,))
-            create_table(c, 'ecdict')
-            time_start = time()
-            for i, row in enumerate(csv_in, 1):
-                # if ' ' in row['word']:  # 跳过词组
-                #     continue
-                value = row2dict(row)
-                if i % 2000 == 0:
-                    iw = i / 10000  # 已处理的单词数（万）
-                    dt = time() - time_start  # 用时（秒）
-                    v = iw / dt  # 速度（万每秒）
-                    print('%-150s' % (
-                        '已处理 %.1f 万词条，用时 %.2f 秒，'
-                        '%.2f 万每秒，剩余 %.2f 秒'
-                        % (iw, dt, v, (432.5 - iw) / v)
-                    ), end='\r')
-                insert_dict(c, value)
 
-            print('\n正在写入磁盘... ', end='')
+            print('正在写入内存...')
             time_start = time()
-            create_table(c, 'disk.ecdict')
-            c.execute('INSERT INTO disk.ecdict SELECT * FROM ecdict;')
+            write_memory(c, csv_in)
             print('用时 %.2f 秒' % (time() - time_start))
 
-    # SQLite 会自动创建索引，不需要手动创建
-
-    # print('正在创建索引... ', end='')
-    # with connect(file_name_out, isolation_level=None) as conn:
-    #     c = conn.cursor()
-    #     time_start = time()
-    #     c.execute('CREATE INDEX word ON ecdict (word COLLATE NOCASE);')
-    #     print('用时 %.2f 秒' % (time() - time_start))
+            print('正在写入磁盘... ', end='')
+            time_start = time()
+            write_disk(c, file_name_out)
+            print('用时 %.2f 秒' % (time() - time_start))
 
 
 if __name__ == '__main__':
