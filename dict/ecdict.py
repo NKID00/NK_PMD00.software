@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # 版权所有 © 2020-2021 NKID00
 
-'''读取 SQLite3 格式的字典'''
+'''读取 SQLite3 格式的 ECDICT'''
 
 from sqlite3 import connect, Row
 from typing import Union, Tuple
