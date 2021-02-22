@@ -5,19 +5,16 @@
 __all__ = ('SCREEN_WIDTH', 'SCREEN_HEIGHT', 'SCREEN_PIXELS', 'SCREEN_X_BYTES',
            'SCREEN_BYTES', 'Frame', 'Screen')
 
-from time import sleep
-
 # 常量
 SCREEN_WIDTH, SCREEN_HEIGHT = 128, 64  # SCREEN_WIDTH 必须是 8 的整数倍
 SCREEN_PIXELS = SCREEN_WIDTH * SCREEN_HEIGHT
 SCREEN_X_BYTES = SCREEN_WIDTH // 8
 SCREEN_BYTES = SCREEN_X_BYTES * SCREEN_HEIGHT
 
-T_MILLISECOND = 1 / 1000  # 毫秒
-T_MICROSECOND = T_MILLISECOND / 1000  # 微秒
-T_SCLK_HIGH = T_MICROSECOND * 5  # SCLK 每次保持高电平时间
-T_LCD_CLEAR = T_MILLISECOND * 1.6  # 液晶显示器执行清屏指令时间
-T_LCD_PROCESS = T_MICROSECOND * 72  # 液晶显示器执行其他指令时间
+# T_MILLISECOND = 1 / 1000  # 毫秒
+# T_MICROSECOND = T_MILLISECOND / 1000  # 微秒
+# T_SCLK_HIGH = T_MICROSECOND * 5  # SCLK 每次保持高电平时间
+# T_LCD_PROCESS = T_MICROSECOND * 72  # 液晶显示器执行指令时间
 # 使用 timeit 在 Raspberry Pi zero + Raspberry Pi OS 下测试多次得：
 #     pass 约延迟 0.19 微秒
 #     sleep(0) 约延迟 7.9 微秒
@@ -28,11 +25,9 @@ T_LCD_PROCESS = T_MICROSECOND * 72  # 液晶显示器执行其他指令时间
 #     <PWMOutputDevice>.on(); <...>.off() 约延迟 240 微秒
 #     <DigitalOutputDevice>.on(); <...>.off() 约延迟 385 微秒
 # SCLK 每次保持高电平时间需要为约 5 微秒
-# 液晶显示器执行清屏指令时间为 1.6 毫秒
 # 液晶显示器执行其他指令时间为 72 微秒
 #
-# 因此尽可能使用 OutputDevice 的 .on() 和 .off() 进行操作；
-# 只需要在清屏时执行 sleep(T_LCD_CLEAR)就够了，其他地方不需要延时。
+# 因此尽可能使用 OutputDevice 的 .on() 和 .off() 进行操作
 
 HIGH = True
 LOW = False
