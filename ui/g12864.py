@@ -5,7 +5,7 @@
 __all__ = ('SCREEN_WIDTH', 'SCREEN_HEIGHT', 'SCREEN_PIXELS', 'SCREEN_X_BYTES',
            'SCREEN_BYTES', 'Frame', 'Screen')
 
-from time import time
+from time import time, sleep
 from itertools import islice
 
 # 一个字均指两个字节，而不是一个字符
@@ -18,7 +18,7 @@ SCREEN_X_BYTES = SCREEN_WIDTH // 8
 SCREEN_BYTES = SCREEN_X_BYTES * SCREEN_HEIGHT
 SCREEN_X_WORDS = SCREEN_X_BYTES // 2
 
-# T_MILLISECOND = 1 / 1000  # 毫秒
+T_MILLISECOND = 1 / 1000  # 毫秒
 # T_MICROSECOND = T_MILLISECOND / 1000  # 微秒
 # T_SCLK_HIGH = T_MICROSECOND * 5  # SCLK 每次保持高电平时间
 # T_LCD_PROCESS = T_MICROSECOND * 72  # 液晶显示器执行指令时间
@@ -73,9 +73,15 @@ class Frame:
     def set_pixel(self, x: int, y: int, value: bool):
         '''设置坐标位置的像素'''
         if value:
-            self.set_byte(x, y, self.get_byte(x, y) | (1 << (x % 8)) != 0)
+            self.set_byte(
+                x, y,
+                self.get_byte(x, y) | (0b1000_0000 >> (x % 8))
+            )
         else:
-            self.set_byte(x, y, self.get_byte(x, y) & ~(1 << (x % 8)) != 0)
+            self.set_byte(
+                x, y,
+                self.get_byte(x, y) & ~(0b1000_0000 >> (x % 8))
+            )
 
     def __getitem__(self, key):
         if isinstance(key, tuple):
@@ -96,6 +102,33 @@ class Frame:
         '''复制自身'''
         return Frame(self)
 
+    def fill(self, value: bool = False):
+        '''填充'''
+        if value:
+            self._data = bytearray(b'\xff' * SCREEN_BYTES)
+        else:
+            self._data = bytearray(SCREEN_BYTES)
+
+    def draw_rectangle(
+        self,
+        x0: int, y0: int,
+        x1: int, y1: int,
+        value: bool = True
+    ):
+        '''绘制矩形'''
+        for x in range(x0, x1 + 1):
+            for y in range(y0, y1 + 1):
+                self.set_pixel(x, y, value)
+
+    def draw_line(
+        self,
+        x0: int, y0: int,
+        x1: int, y1: int,
+        value: bool = True
+    ):
+        '''绘制直线段'''
+        pass
+
 
 class Screen:
     '''双缓冲区屏幕'''
@@ -109,7 +142,7 @@ class Screen:
             factory = None
         self._sid = OutputDevice(pin_sid, pin_factory=factory)
         self._sclk = OutputDevice(pin_sclk, pin_factory=factory)
-        self._bla = PWMLED(pin_bla, pin_factory=factory)
+        self._bla = PWMLED(pin_bla, frequency=300, pin_factory=factory)
         self.frame = Frame()
         self._current_frame = Frame()
         self.write_setup()
@@ -289,6 +322,7 @@ def test():
     time_start = time()
     s.refresh()
     print('用时 %.2f 秒' % (time() - time_start))
+
     input('完成。')
 
 
