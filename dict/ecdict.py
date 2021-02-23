@@ -9,7 +9,7 @@ from typing import Union, Tuple
 
 
 class ECDict:
-    '''词典'''
+    '''ECDICT 辞典'''
     _SQL_GET = 'SELECT * FROM ecdict WHERE word = ?;'
     _SQL_GET_FUZZY = 'SELECT * FROM ecdict WHERE word LIKE ? LIMIT %d;'
 
@@ -38,7 +38,7 @@ class ECDict:
             return self.get(key)
 
     def close(self):
-        '''关闭词典'''
+        '''关闭辞典'''
         if not self.closed:
             self._conn.close()
             self.closed = True
@@ -49,7 +49,7 @@ class ECDict:
 
 def test():
     from pprint import pp
-    d = ECDict(input('词典: '))
+    d = ECDict(input('辞典: '))
     print("d['abandon'] =>")
     pp(d['abandon'])
     print("d['aba', 5] =>")
