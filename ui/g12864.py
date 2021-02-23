@@ -232,7 +232,18 @@ class Screen:
             )
         )):
             if current != target:  # 两帧不同，写入数据
-                self.write_address(i % SCREEN_X_WORDS, i // SCREEN_X_WORDS)
+                if i < SCREEN_X_WORDS * SCREEN_HEIGHT // 2:
+                    # 上半屏幕
+                    self.write_address(
+                        i % SCREEN_X_WORDS,
+                        i // SCREEN_X_WORDS
+                    )
+                else:
+                    # 下半屏幕
+                    self.write_address(
+                        i % SCREEN_X_WORDS + SCREEN_X_WORDS,
+                        i // SCREEN_X_WORDS - SCREEN_HEIGHT // 2
+                    )
                 self.write_word_data(*target)
 
         self._current_frame = self.frame.copy()
