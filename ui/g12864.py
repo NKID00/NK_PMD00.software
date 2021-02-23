@@ -5,7 +5,7 @@
 __all__ = ('SCREEN_WIDTH', 'SCREEN_HEIGHT', 'SCREEN_PIXELS', 'SCREEN_X_BYTES',
            'SCREEN_BYTES', 'Frame', 'Screen')
 
-from time import time
+from time import time_ns
 from itertools import islice
 
 # 一个字均指两个字节，而不是一个字符
@@ -143,18 +143,26 @@ class Screen:
         self._sclk = pin_sclk
         self._bla = self._gpio.PWM(pin_bla, 300)
         self._bla.start(0)
+        self._bl_value = 0
         self.frame = Frame()
         self._current_frame = Frame()
         self.write_setup()
 
     def __del__(self):
         try:
-            self._gpio.cleanup((self._sid, self._sclk))
+            self._gpio.cleanup()
         except AttributeError:
             pass
 
-    def set_bl_value(self, value):
+    @property
+    def bl_value(self):
+        '''背光亮度，区间为 [0, 100]'''
+        return self._bl_value
+
+    @bl_value.setter
+    def bl_value(self, value):
         self._bla.ChangeDutyCycle(value)
+        self._bl_value = value
 
     def _write_bit(self, value: bool):
         '''写入位'''
@@ -281,46 +289,62 @@ class Screen:
 
         self._current_frame = self.frame.copy()
 
-    def clear(self):
-        self.frame = Frame()
-        self.refresh()
+    def refresh_force(self):
+        # 计算当前帧变为下一帧需要改变的字
+        for i, target in enumerate(zip(
+            islice(iter(self.frame), None, None, 2),
+            islice(iter(self.frame), 1, None, 2)
+        )):
+            if i < SCREEN_X_WORDS * SCREEN_HEIGHT // 2:
+                # 上半屏幕
+                self.write_address(
+                    i % SCREEN_X_WORDS,
+                    i // SCREEN_X_WORDS
+                )
+            else:
+                # 下半屏幕
+                self.write_address(
+                    i % SCREEN_X_WORDS + SCREEN_X_WORDS,
+                    i // SCREEN_X_WORDS - SCREEN_HEIGHT // 2
+                )
+            self.write_word_data(*target)
 
-    def clear_force(self):
-        self._current_frame = Frame(b'\xff' * SCREEN_BYTES)
-        self.frame = Frame()
-        self.refresh()
+        self._current_frame = self.frame.copy()
 
 
 def test():
     print('创建屏幕实例并初始化... ', end='', flush=True)
-    time_start = time()
+    time_start = time_ns()
     s = Screen(
         pin_sid=16,
         pin_sclk=18,
         pin_bla=32
     )
-    print('用时 %.2f 秒' % (time() - time_start))
+    print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
     print('调整背光亮度... ', end='', flush=True)
-    time_start = time()
-    s.set_bl_value(0.1)
-    print('用时 %.2f 秒' % (time() - time_start))
+    time_start = time_ns()
+    s.bl_value = 100
+    print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
     print('清屏... ', end='', flush=True)
-    time_start = time()
-    s.clear_force()
-    print('用时 %.2f 秒' % (time() - time_start))
+    time_start = time_ns()
+    s.refresh_force()
+    print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
     print('向帧缓存中绘制图案... ', end='', flush=True)
-    time_start = time()
-    for i in range(5):
-        s.frame[i, i] = True
-    print('用时 %.2f 秒' % (time() - time_start))
+    time_start = time_ns()
+    s.frame.fill(True)
+    s.frame.draw_rectangle(10, 10, 100, 50, False)
+    s.frame.draw_rectangle(30, 30, 41, 41, True)
+    s.frame.draw_rectangle(30, 30, 40, 40, False)
+    s.frame.draw_rectangle(29, 29, 39, 39, True)
+    print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
     print('刷新屏幕缓冲区... ', end='', flush=True)
-    time_start = time()
+    time_start = time_ns()
     s.refresh()
-    print('用时 %.2f 秒' % (time() - time_start))
+    print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
     input('完成。')
 
