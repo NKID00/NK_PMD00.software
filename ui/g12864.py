@@ -5,7 +5,7 @@
 __all__ = ('SCREEN_WIDTH', 'SCREEN_HEIGHT', 'SCREEN_PIXELS', 'SCREEN_X_BYTES',
            'SCREEN_BYTES', 'Frame', 'Screen')
 
-from time import time, sleep
+from time import time
 from itertools import islice
 
 # 一个字均指两个字节，而不是一个字符
@@ -133,28 +133,28 @@ class Frame:
 class Screen:
     '''双缓冲区屏幕'''
 
-    def __init__(self, pin_sid, pin_sclk, pin_bla, remote=False):
-        from gpiozero import OutputDevice, PWMLED
-        if remote:
-            from gpiozero.pins.pigpio import PiGPIOFactory
-            factory = PiGPIOFactory('NK-PMD00')
-        else:
-            factory = None
-        self._sid = OutputDevice(pin_sid, pin_factory=factory)
-        self._sclk = OutputDevice(pin_sclk, pin_factory=factory)
-        self._bla = PWMLED(pin_bla, frequency=300, pin_factory=factory)
+    def __init__(self, pin_sid, pin_sclk, pin_bla):
+        '''创建屏幕实例，引脚编号为物理编号'''
+        import RPi.GPIO
+        self._gpio = RPi.GPIO
+        self._gpio.setmode(self._gpio.BOARD)
+        self._gpio.setup((pin_sid, pin_sclk, pin_bla), self._gpio.OUT)
+        self._sid = pin_sid
+        self._sclk = pin_sclk
+        self._bla = self._gpio.PWM(pin_bla, 300)
+        self._bla.start(0)
         self.frame = Frame()
         self._current_frame = Frame()
         self.write_setup()
 
-    @property
-    def bl_value(self):
-        '''背光亮度'''
-        return self._bla.value
+    def __del__(self):
+        try:
+            self._gpio.cleanup((self._sid, self._sclk))
+        except AttributeError:
+            pass
 
-    @bl_value.setter
-    def bl_value(self, value):
-        self._bla.value = value
+    def set_bl_value(self, value):
+        self._bla.ChangeDutyCycle(value)
 
     def _write_bit(self, value: bool):
         '''写入位'''
@@ -165,15 +165,15 @@ class Screen:
 
     def _write_bit_high(self):
         '''写入高电平位'''
-        self._sid.on()
-        self._sclk.on()
-        self._sclk.off()
+        self._gpio.output(self._sid, HIGH)
+        self._gpio.output(self._sclk, HIGH)
+        self._gpio.output(self._sclk, LOW)
 
     def _write_bit_low(self):
         '''写入低电平位'''
-        self._sid.off()
-        self._sclk.on()
-        self._sclk.off()
+        self._gpio.output(self._sid, LOW)
+        self._gpio.output(self._sclk, HIGH)
+        self._gpio.output(self._sclk, LOW)
 
     def write_byte(self, rs: bool, value):
         '''写入字节'''
@@ -295,16 +295,15 @@ def test():
     print('创建屏幕实例并初始化... ', end='', flush=True)
     time_start = time()
     s = Screen(
-        pin_sid='BOARD16',
-        pin_sclk='BOARD18',
-        pin_bla='BOARD32',
-        # remote=True
+        pin_sid=16,
+        pin_sclk=18,
+        pin_bla=32
     )
     print('用时 %.2f 秒' % (time() - time_start))
 
     print('调整背光亮度... ', end='', flush=True)
     time_start = time()
-    s.bl_value = 1
+    s.set_bl_value(0.1)
     print('用时 %.2f 秒' % (time() - time_start))
 
     print('清屏... ', end='', flush=True)
