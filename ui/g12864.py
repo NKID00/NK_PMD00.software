@@ -5,11 +5,18 @@
 __all__ = ('SCREEN_WIDTH', 'SCREEN_HEIGHT', 'SCREEN_PIXELS', 'SCREEN_X_BYTES',
            'SCREEN_BYTES', 'Frame', 'Screen')
 
+from time import time
+from itertools import islice
+
+# 一个字均指两个字节，而不是一个字符
+
 # 常量
-SCREEN_WIDTH, SCREEN_HEIGHT = 128, 64  # SCREEN_WIDTH 必须是 8 的整数倍
+# SCREEN_WIDTH 必须是 16（一个字）的整数倍
+SCREEN_WIDTH, SCREEN_HEIGHT = 128, 64
 SCREEN_PIXELS = SCREEN_WIDTH * SCREEN_HEIGHT
 SCREEN_X_BYTES = SCREEN_WIDTH // 8
 SCREEN_BYTES = SCREEN_X_BYTES * SCREEN_HEIGHT
+SCREEN_X_WORDS = SCREEN_X_BYTES // 2
 
 # T_MILLISECOND = 1 / 1000  # 毫秒
 # T_MICROSECOND = T_MILLISECOND / 1000  # 微秒
@@ -82,13 +89,16 @@ class Frame:
         elif isinstance(key, int):
             self._data[key] = value
 
+    def __iter__(self):
+        yield from self._data
+
     def copy(self):
         '''复制自身'''
         return Frame(self)
 
 
 class Screen:
-    '''屏幕'''
+    '''双缓冲区屏幕'''
 
     def __init__(self, pin_sid, pin_sclk, pin_bla, remote=False):
         from gpiozero import OutputDevice, PWMLED
@@ -99,9 +109,10 @@ class Screen:
             factory = None
         self._sid = OutputDevice(pin_sid, pin_factory=factory)
         self._sclk = OutputDevice(pin_sclk, pin_factory=factory)
-        self._bla = PWMLED(pin_sclk, pin_factory=factory)
+        self._bla = PWMLED(pin_bla, pin_factory=factory)
         self.frame = Frame()
         self._current_frame = Frame()
+        self.write_setup()
 
     @property
     def bl_value(self):
@@ -137,7 +148,7 @@ class Screen:
             # 转换 int 到包含 bool 的 tuple，小索引对应低位
             value = tuple(map(
                 lambda c: c == '1',
-                str.format('{:08b}', value)[::-1]
+                '{:08b}'.format(value)[::-1]
             ))
 
         # 同步
@@ -184,28 +195,95 @@ class Screen:
         '''写入数据字节，RS 为高电平'''
         self.write_byte(HIGH, value)
 
-    def write_word_data(self, value):
+    def write_word_data(self, byte0, byte1):
         '''写入数据字，RS 为高电平'''
-        pass
+        self.write_byte_data(byte0)
+        self.write_byte_data(byte1)
 
     def write_setup(self):
         '''写入初始设置'''
+        # 设置 8 位 MPU 接口，基本指令集
+        self.write_byte_command(0b0011_0000)
+
         # 设置扩充指令集
         self.write_byte_command(0b0011_0100)
 
         # 设置绘图显示开
         self.write_byte_command(0b0011_0110)
 
-    def write_address(self, value):
-        '''写入绘图 RAM 地址'''
-        pass
+    def write_address(self, x: int, y: int):
+        '''写入绘图 RAM 地址，x 单位为字'''
+        # 写入 y
+        self.write_byte_command(0b1000_0000 + y)
+
+        # 写入 x
+        self.write_byte_command(0b1000_0000 + x)
 
     def refresh(self):
         '''刷新画面'''
-        # 计算当前帧变为下一帧需要改变的字（16位）
-        pass
-
-        # 写入数据（每次16位）
-        pass
+        # 计算当前帧变为下一帧需要改变的字
+        for i, (current, target) in enumerate(zip(
+            zip(  # 每次迭代两帧相同位置的字
+                islice(iter(self._current_frame), None, None, 2),
+                islice(iter(self._current_frame), 1, None, 2)
+            ), zip(
+                islice(iter(self.frame), None, None, 2),
+                islice(iter(self.frame), 1, None, 2)
+            )
+        )):
+            if current != target:  # 两帧不同，写入数据
+                self.write_address(i % SCREEN_X_WORDS, i // SCREEN_X_WORDS)
+                self.write_word_data(*target)
 
         self._current_frame = self.frame.copy()
+
+    def clear(self):
+        self.frame = Frame()
+        self.refresh()
+
+    def clear_force(self):
+        self._current_frame = Frame(b'\xff' * SCREEN_BYTES)
+        self.frame = Frame()
+        self.refresh()
+
+
+def test():
+    print('创建屏幕实例并初始化... ', end='', flush=True)
+    time_start = time()
+    s = Screen(
+        pin_sid='BOARD16',
+        pin_sclk='BOARD18',
+        pin_bla='BOARD32',
+        # remote=True
+    )
+    print('用时 %.2f 秒' % (time() - time_start))
+
+    print('调整背光亮度... ', end='', flush=True)
+    time_start = time()
+    s.bl_value = 1
+    print('用时 %.2f 秒' % (time() - time_start))
+
+    print('清屏... ', end='', flush=True)
+    time_start = time()
+    s.clear_force()
+    print('用时 %.2f 秒' % (time() - time_start))
+
+    print('向帧缓存中绘制图案... ', end='', flush=True)
+    time_start = time()
+    for i in range(5):
+        s.frame[i, i] = True
+    print('用时 %.2f 秒' % (time() - time_start))
+
+    print('刷新屏幕缓冲区... ', end='', flush=True)
+    time_start = time()
+    s.refresh()
+    print('用时 %.2f 秒' % (time() - time_start))
+
+
+if __name__ == '__main__':
+    try:
+        test()
+    except KeyboardInterrupt:
+        print('已取消。', flush=True)
+    else:
+        print('完成。', flush=True)
