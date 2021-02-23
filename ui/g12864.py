@@ -289,6 +289,7 @@ def test():
     time_start = time()
     s.refresh()
     print('用时 %.2f 秒' % (time() - time_start))
+    input('完成。')
 
 
 if __name__ == '__main__':
@@ -296,5 +297,3 @@ if __name__ == '__main__':
         test()
     except KeyboardInterrupt:
         print('已取消。', flush=True)
-    else:
-        print('完成。', flush=True)
