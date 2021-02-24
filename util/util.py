@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: MIT
 # 版权所有 © 2020-2021 NKID00
 
-'''转换时可能会使用的一些函数'''
+'''可能会使用的一些常用函数'''
 
 __all__ = (
     'ask_input', 'ask_output', 'copy_item', 'set_item',
-    'insert_dict', 'insert_info',
+    'insert_dict', 'insert_info', 'group_iter',
 )
 
 from os.path import exists
@@ -67,7 +67,7 @@ def insert_dict(cursor, table: str, value: dict):
 
 
 def insert_info(cursor, table: str, info: dict):
-    '''新建表并插入信息'''
+    '''新建信息表并插入信息'''
     cursor.execute(
         'CREATE TABLE %s (\n'
         '    name        TEXT,    -- 名称\n'
@@ -81,3 +81,19 @@ def insert_info(cursor, table: str, info: dict):
         ');' % table
     )
     insert_dict(cursor, table, info)
+
+
+def group_iter(it, n):
+    '''依次将迭代器产出的值分组，每组 n 个，产出这些组'''
+    it = iter(it)
+    while True:
+        g = []
+        try:
+            for _ in range(n):
+                g.append(next(it))
+        except StopIteration:
+            if len(g) > 0:
+                yield tuple(g)
+            return
+        else:
+            yield tuple(g)

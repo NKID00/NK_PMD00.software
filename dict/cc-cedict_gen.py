@@ -8,7 +8,16 @@ from re import match
 from sqlite3 import connect, Cursor
 from time import time
 
-from util_gen import ask_input, ask_output, insert_dict, insert_info
+# 导入 ../util/util.py 里的函数
+from importlib.util import spec_from_file_location, module_from_spec
+_util_spec = spec_from_file_location('util', '../util/util.py')
+_util = module_from_spec(_util_spec)
+_util_spec.loader.exec_module(_util)
+# 用 globals() 批量赋值的话错误检查程序就不高兴了
+ask_input = _util.ask_input
+ask_output = _util.ask_output
+insert_dict = _util.insert_dict
+insert_info = _util.insert_info
 
 
 def read_lines_iter(file):

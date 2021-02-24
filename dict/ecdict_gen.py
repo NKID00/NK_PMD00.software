@@ -8,8 +8,18 @@ from csv import DictReader
 from sqlite3 import connect
 from time import time
 
-from util_gen import ask_input, ask_output, \
-    copy_item, set_item, insert_dict, insert_info
+# 导入 ../util/util.py 里的函数
+from importlib.util import spec_from_file_location, module_from_spec
+_util_spec = spec_from_file_location('util', '../util/util.py')
+_util = module_from_spec(_util_spec)
+_util_spec.loader.exec_module(_util)
+# 用 globals() 批量赋值的话错误检查程序就不高兴了
+ask_input = _util.ask_input
+ask_output = _util.ask_output
+copy_item = _util.copy_item
+set_item = _util.set_item
+insert_dict = _util.insert_dict
+insert_info = _util.insert_info
 
 
 def create_table(cursor, table: str):
@@ -103,7 +113,7 @@ def write_memory(c, csv_in):
                 '已处理 %.1f 万词条，用时 %.2f 秒，'
                 '%.2f 万每秒，剩余 %.2f 秒'
                 % (iw, dt, v, (432.5 - iw) / v)
-            ), end='\r')
+            ), end='\r', flush=True)
             time_temp = time()
     print()
 
@@ -139,12 +149,12 @@ def main():
         with connect(':memory:', isolation_level=None) as conn_out:
             c = conn_out.cursor()
 
-            print('正在写入内存...')
+            print('正在写入内存...', flush=True)
             time_start = time()
             write_memory(c, csv_in)
             print('用时 %.2f 秒' % (time() - time_start))
 
-            print('正在写入磁盘... ', end='')
+            print('正在写入磁盘... ', end='', flush=True)
             time_start = time()
             write_disk(c, file_name_out)
             print('用时 %.2f 秒' % (time() - time_start))
@@ -154,6 +164,6 @@ if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
-        print('\n已取消。')
+        print('\n已取消。', flush=True)
     else:
-        print('完成。')
+        print('完成。', flush=True)

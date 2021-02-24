@@ -8,6 +8,14 @@ __all__ = ('SCREEN_WIDTH', 'SCREEN_HEIGHT', 'SCREEN_PIXELS', 'SCREEN_X_BYTES',
 from time import time_ns
 from itertools import islice
 
+# 导入 ../util/util.py 里的函数
+from importlib.util import spec_from_file_location, module_from_spec
+_util_spec = spec_from_file_location('util', '../util/util.py')
+_util = module_from_spec(_util_spec)
+_util_spec.loader.exec_module(_util)
+# 用 globals() 批量赋值的话错误检查程序就不高兴了
+group_iter = _util.group_iter
+
 # 一个字均指两个字节，而不是一个字符
 
 # 常量
@@ -261,16 +269,11 @@ class Screen:
         self.write_byte_command(0b1000_0000 + x)
 
     def refresh(self):
-        '''刷新画面'''
+        '''刷新画面（仅刷新改变的字）'''
         # 计算当前帧变为下一帧需要改变的字
-        for i, (current, target) in enumerate(zip(
-            zip(  # 每次迭代两帧相同位置的字
-                islice(iter(self._current_frame), None, None, 2),
-                islice(iter(self._current_frame), 1, None, 2)
-            ), zip(
-                islice(iter(self.frame), None, None, 2),
-                islice(iter(self.frame), 1, None, 2)
-            )
+        for i, (current, target) in enumerate(zip(  # 每次迭代两帧相同位置的字
+            group_iter(self._current_frame, 2),
+            group_iter(self.frame, 2)
         )):
             if current != target:  # 两帧不同，写入数据
                 if i < SCREEN_X_WORDS * SCREEN_HEIGHT // 2:
@@ -290,11 +293,9 @@ class Screen:
         self._current_frame = self.frame.copy()
 
     def refresh_force(self):
-        # 计算当前帧变为下一帧需要改变的字
-        for i, target in enumerate(zip(
-            islice(iter(self.frame), None, None, 2),
-            islice(iter(self.frame), 1, None, 2)
-        )):
+        '''强制刷新画面（刷新所有字）'''
+        # 刷新所有字
+        for i, target in enumerate(group_iter(self._current_frame, 2)):
             if i < SCREEN_X_WORDS * SCREEN_HEIGHT // 2:
                 # 上半屏幕
                 self.write_address(
