@@ -22,7 +22,7 @@
 
 - `gen/*dict_gen.py` 用于转换其他格式的辞典数据到适合读取的数据库格式。
 
-- `ui/unifont_gen.py` 用于转换 TrueType 格式的 Unifont 字体到适合读取的二进制点阵格式。
+- `gen/unifont_gen.py` 用于转换 TrueType 格式的 Unifont 字体到适合读取的二进制点阵格式。
 
 `util/util.py` 是可能会使用的一些常用函数。
 
