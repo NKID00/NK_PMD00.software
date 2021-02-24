@@ -22,7 +22,7 @@
 
 - `gen/*dict_gen.py` 用于转换其他格式的辞典数据到适合读取的数据库格式。
 
-- `gen/unifont_gen.py` 用于转换 TrueType 格式的 Unifont 字体到适合读取的二进制点阵格式。
+- `gen/unifont_gen.py` 用于转换 TrueType 格式的 Unifont 字体到适合读取的点阵格式。
 
 `util/util.py` 是可能会使用的一些常用函数。
 
@@ -40,6 +40,6 @@
 
   - https://github.com/skywind3000/ECDICT-ultimate
 
-- 使用 `gen/unifont_gen.py` 转换出的二进制点阵格式的 Unifont 字体的版权归原 Unifont 字体版权所有者所有，依照原 Unifont 字体的 SIL Open Font License 1.1 进行许可。Unifont 字体相关链接：
+- 使用 `gen/unifont_gen.py` 转换出的点阵格式的 Unifont 字体的版权归原 Unifont 字体版权所有者所有，依照原 Unifont 字体的 SIL Open Font License 1.1 进行许可。Unifont 字体相关链接：
 
   - http://unifoundry.com/unifont/index.html

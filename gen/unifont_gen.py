@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # 版权所有 © 2020-2021 NKID00
 
-'''转换 TrueType 格式的 Unifont 字体到二进制点阵格式'''
+'''转换 TrueType 格式的 Unifont 字体到点阵格式'''
 
 from freetype import Face
 from time import time
@@ -19,7 +19,7 @@ group_iter = _util.group_iter
 
 
 def convert_char(face, char):
-    '''将单个字符转换为二进制点阵格式'''
+    '''将单个字符转换为点阵格式'''
     # 加载点阵
     face.load_char(char)
     width = face.glyph.bitmap.width

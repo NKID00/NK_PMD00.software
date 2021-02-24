@@ -61,7 +61,7 @@ def split_exchange(exchange: str) -> dict:
 def row2dict(row) -> dict:
     '''将 CSV 行转换为数据库行字典'''
     # 复制必需字段
-    value = {'word': row['word']}
+    value = {'word': row['word'].replace('\\n', '\n')}
 
     # 复制简单字段
     for key in (

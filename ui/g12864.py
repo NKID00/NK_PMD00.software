@@ -380,7 +380,7 @@ class Screen:
 
 
 def test():
-    print('读取二进制点阵格式的 Unifont 字体... ', end='', flush=True)
+    print('读取点阵格式的 Unifont 字体... ', end='', flush=True)
     time_start = time_ns()
     with open('unifont.bin', 'rb') as f:
         font_bitmap = f.read()
