@@ -127,6 +127,10 @@ class Frame:
         value: bool = True
     ):
         '''绘制矩形'''
+        if x0 > x1:
+            x0, x1 = x1, x0
+        if y0 > y1:
+            y0, y1 = y1, y0
         for x in range(x0, x1 + 1):
             for y in range(y0, y1 + 1):
                 self.set_pixel(x, y, value)
@@ -415,7 +419,7 @@ def test():
     )
     print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
-    print('刷新屏幕缓冲区... ', end='', flush=True)
+    print('刷新屏幕... ', end='', flush=True)
     time_start = time_ns()
     s.refresh()
     print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
