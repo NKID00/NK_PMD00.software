@@ -361,7 +361,7 @@ class Screen:
     def refresh_force(self):
         '''强制刷新画面（刷新所有字）'''
         # 刷新所有字
-        for i, target in enumerate(group_iter(self._current_frame, 2)):
+        for i, target in enumerate(group_iter(self.frame, 2)):
             if i < SCREEN_X_WORDS * SCREEN_HEIGHT // 2:
                 # 上半屏幕
                 self.write_address(

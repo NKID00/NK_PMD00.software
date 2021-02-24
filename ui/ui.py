@@ -31,10 +31,47 @@ class MenuUI(UI):
 
     def __init__(self, frame):
         super().__init__(frame)
-        self.title = ''
-        self.items = []
-        self.select_index = 0
-        self.display_selected = True  # 突出显示选中项
+        self._title = ''
+        self._items = []
+        self._select_index = 0
+        self._display_selected = True  # 突出显示选中项
+        self.refresh()
+
+    @property
+    def title(self):
+        return self._title
+
+    @title.setter
+    def title(self, value):
+        self._title = value
+        self.refresh()
+
+    @property
+    def items(self):
+        return self._items
+
+    @items.setter
+    def items(self, value):
+        self._items = value
+        self.refresh()
+
+    @property
+    def select_index(self):
+        return self._select_index
+
+    @select_index.setter
+    def select_index(self, value):
+        self._select_index = value
+        self.refresh()
+
+    @property
+    def display_selected(self):
+        return self._display_selected
+
+    @display_selected.setter
+    def display_selected(self, value):
+        self._display_selected = value
+        self.refresh()
 
     def process(self, event):
         if event == EVENT_KEY_UP:
@@ -147,7 +184,7 @@ class DictionaryUI(UI):
         super().__init__(screen)
 
 
-def test():
+def test_menu():
     print('读取二进制点阵格式的 Unifont 字体... ', end='', flush=True)
     time_start = time_ns()
     with open('unifont.bin', 'rb') as f:
@@ -165,11 +202,6 @@ def test():
     screen.bl_value = 100
     print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
-    print('清屏... ', end='', flush=True)
-    time_start = time_ns()
-    screen.refresh_force()
-    print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
-
     print('创建菜单界面实例并初始化... ', end='', flush=True)
     time_start = time_ns()
     menu = MenuUI(screen.frame)
@@ -177,24 +209,14 @@ def test():
     menu.items = ['Item No. 1', 'Item No. 2', 'Item No. 3', 'Item No. 4']
     print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
-    print('刷新菜单界面... ', end='', flush=True)
+    print('强制刷新屏幕... ', end='', flush=True)
     time_start = time_ns()
-    menu.refresh()
-    print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
-
-    print('刷新屏幕... ', end='', flush=True)
-    time_start = time_ns()
-    screen.refresh()
+    screen.refresh_force()
     input('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
     print('选中第二项... ', end='', flush=True)
     time_start = time_ns()
     menu.process(EVENT_KEY_DOWN)
-    print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
-
-    print('刷新菜单界面... ', end='', flush=True)
-    time_start = time_ns()
-    menu.refresh()
     print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
     print('刷新屏幕... ', end='', flush=True)
@@ -207,11 +229,6 @@ def test():
     menu.process(EVENT_KEY_DOWN)
     print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
-    print('刷新菜单界面... ', end='', flush=True)
-    time_start = time_ns()
-    menu.refresh()
-    print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
-
     print('刷新屏幕... ', end='', flush=True)
     time_start = time_ns()
     screen.refresh()
@@ -222,9 +239,14 @@ def test():
     menu.process(EVENT_KEY_DOWN)
     print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
-    print('刷新菜单界面... ', end='', flush=True)
+    print('刷新屏幕... ', end='', flush=True)
     time_start = time_ns()
-    menu.refresh()
+    screen.refresh()
+    input('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
+
+    print('改变标题... ', end='', flush=True)
+    time_start = time_ns()
+    menu.title = 'Changed!!'
     print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
     print('刷新屏幕... ', end='', flush=True)
@@ -233,5 +255,41 @@ def test():
     input('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
 
+def test_about():
+    with open('unifont.bin', 'rb') as f:
+        font_bitmap = f.read()
+    screen = Screen(
+        pin_sid=16,
+        pin_sclk=18,
+        pin_bla=32,
+        initial_frame=TextFrame(font_bitmap)
+    )
+    screen.bl_value = 100
+    about = AboutUI(screen.frame)
+    about.title = 'About 的标题！！'
+    about.items = [
+        '第一行 No. 1',
+        '这是第二行',
+        '© NKID00 2020-2021',
+        'MIT License',
+        '# ？还有一行',
+    ]
+    about.refresh()
+    screen.refresh_force()
+
+    about.process(EVENT_KEY_DOWN)
+    screen.refresh()
+    input()
+    about.process(EVENT_KEY_DOWN)
+    screen.refresh()
+    input()
+    about.process(EVENT_KEY_DOWN)
+    screen.refresh()
+    input()
+    about.process(EVENT_KEY_DOWN)
+    screen.refresh()
+    input()
+
 if __name__ == '__main__':
-    test()
+    # test_menu()
+    test_about()
