@@ -4,7 +4,7 @@
 
 市面上的电子辞典太贵还有平时用不到的多余功能，于是打算自己做一个。
 
-这个项目大约从 2020 年 5 月就开始了，目前已经完成了约 10%。
+这个项目大约从 2020 年 5 月就开始了，目前软件部分已经完成了约 40%。
 
 此仓库为软件部分，硬件部分请前往 [NK_PMD00.hardware](https://github.com/NKID00/NK_PMD00.hardware)。
 
@@ -14,13 +14,15 @@
 
 - `ui/ui.py` 用于显示用户界面。
 
-- `ui/unifont_gen.py` 用于转换 TrueType 格式的 Unifont 字体到能够读取的二进制点阵格式。
-
 - 控制部分尚未编写。
 
 `dict/` 是用于读取辞典数据库的后端部分。
 
-- `dict/*_gen.py` 用于转换其他格式的辞典数据到能够读取的数据库格式。
+`gen/` 是用于转换各种格式的数据到适合读取的格式的工具。
+
+- `gen/*dict_gen.py` 用于转换其他格式的辞典数据到适合读取的数据库格式。
+
+- `ui/unifont_gen.py` 用于转换 TrueType 格式的 Unifont 字体到适合读取的二进制点阵格式。
 
 `util/util.py` 是可能会使用的一些常用函数。
 
@@ -30,6 +32,14 @@
 
 使用 MIT License 进行许可。
 
-使用 `dict/*_gen.py` 转换出的辞典数据库的版权归原辞典数据版权所有者所有，依照原辞典数据的许可证进行许可。
+使用 `gen/` 转换出的数据的版权归原数据版权所有者所有，依照原数据的许可证进行许可。
 
-使用 `ui/unifont_gen.py` 转换出的二进制点阵格式的 Unifont 字体的版权归原 Unifont 字体版权所有者所有，依照原 Unifont 字体的 SIL Open Font License 1.1 许可证进行许可。
+- 使用 `gen/ecdict_gen.py` 转换出的 SQLite3 格式的 ECDICT 的版权归原 ECDICT 版权所有者所有，依照原 ECDICT 的 MIT License 进行许可。ECDICT 相关链接：
+
+  - https://github.com/skywind3000/ECDICT
+
+  - https://github.com/skywind3000/ECDICT-ultimate
+
+- 使用 `gen/unifont_gen.py` 转换出的二进制点阵格式的 Unifont 字体的版权归原 Unifont 字体版权所有者所有，依照原 Unifont 字体的 SIL Open Font License 1.1 进行许可。Unifont 字体相关链接：
+
+  - http://unifoundry.com/unifont/index.html

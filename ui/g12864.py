@@ -6,7 +6,6 @@ __all__ = ('SCREEN_WIDTH', 'SCREEN_HEIGHT', 'SCREEN_PIXELS', 'SCREEN_X_BYTES',
            'SCREEN_BYTES', 'Frame', 'Screen')
 
 from time import time_ns
-from itertools import islice
 
 # 导入 ../util/util.py 里的函数
 from importlib.util import spec_from_file_location, module_from_spec
@@ -76,10 +75,14 @@ class Frame:
 
     def get_pixel(self, x: int, y: int) -> bool:
         '''获取坐标位置的像素'''
+        if x >= SCREEN_WIDTH or y >= SCREEN_HEIGHT:
+            return False
         return self.get_byte(x, y) & (1 << (x % 8)) != 0
 
     def set_pixel(self, x: int, y: int, value: bool):
         '''设置坐标位置的像素'''
+        if x >= SCREEN_WIDTH or y >= SCREEN_HEIGHT:
+            return
         if value:
             self.set_byte(
                 x, y,
@@ -108,7 +111,7 @@ class Frame:
 
     def copy(self):
         '''复制自身'''
-        return Frame(self)
+        return Frame(source=self)
 
     def fill(self, value: bool = False):
         '''填充'''
@@ -128,23 +131,80 @@ class Frame:
             for y in range(y0, y1 + 1):
                 self.set_pixel(x, y, value)
 
-    def draw_line(
-        self,
-        x0: int, y0: int,
-        x1: int, y1: int,
-        value: bool = True
-    ):
-        '''绘制直线段'''
-        pass
+
+class TextFrame(Frame):
+    '''可绘制字符的帧画面缓存'''
+
+    def __init__(self, font_bitmap=None, source=None):
+        super().__init__(source)
+        if isinstance(source, TextFrame):
+            self._font_bitmap = source._font_bitmap
+        elif font_bitmap is None:
+            raise TypeError
+        else:
+            self._font_bitmap = font_bitmap
+
+    def draw_char_ascii(self, x: int, y: int, char: int, value: bool = True):
+        '''绘制 ASCII 字符（8x16）'''
+        address = char * 16 * 16 // 8
+        for dy in range(16):
+            for dx, pixel in enumerate(map(
+                lambda c: c == '1',
+                '{:08b}'.format(
+                    self._font_bitmap[address + dy * 2]
+                )
+            )):
+                if pixel:
+                    self.set_pixel(x + dx, y + dy, value)
+
+    def draw_char_unicode(self, x: int, y: int, char: int, value: bool = True):
+        '''绘制 Unicode 字符（16x16）'''
+        address = char * 16 * 16 // 8
+        for dy in range(16):
+            for dx, pixel in enumerate(map(
+                lambda c: c == '1',
+                '{:08b}{:08b}'.format(
+                    self._font_bitmap[address + dy * 2],
+                    self._font_bitmap[address + dy * 2 + 1]
+                )
+            )):
+                if pixel:
+                    self.set_pixel(x + dx, y + dy, value)
+
+    def draw_char(self, x: int, y: int, char: int, value: bool = True):
+        '''绘制字符'''
+        if char < 128:
+            self.draw_char_ascii(x, y, char, value)
+        else:
+            self.draw_char_unicode(x, y, char, value)
+
+    def draw_text(self, x: int, y: int, text: str, value: bool = True):
+        '''绘制文本'''
+        dx = dy = 0
+        for c in text:
+            if c.isascii():
+                if c == '\n':
+                    dx = 0
+                    dy += 16
+                    continue
+                self.draw_char_ascii(x + dx, y + dy, ord(c), value)
+                dx += 8
+            else:
+                self.draw_char_unicode(x + dx, y + dy, ord(c), value)
+                dx += 16
+
+    def copy(self):
+        return TextFrame(source=self)
 
 
 class Screen:
     '''双缓冲区屏幕'''
 
-    def __init__(self, pin_sid, pin_sclk, pin_bla):
+    def __init__(self, pin_sid, pin_sclk, pin_bla, initial_frame=None):
         '''创建屏幕实例，引脚编号为物理编号'''
         import RPi.GPIO
         self._gpio = RPi.GPIO
+        self._gpio.setwarnings(False)
         self._gpio.setmode(self._gpio.BOARD)
         self._gpio.setup((pin_sid, pin_sclk, pin_bla), self._gpio.OUT)
         self._sid = pin_sid
@@ -152,15 +212,17 @@ class Screen:
         self._bla = self._gpio.PWM(pin_bla, 300)
         self._bla.start(0)
         self._bl_value = 0
-        self.frame = Frame()
-        self._current_frame = Frame()
+        if initial_frame is None:
+            initial_frame = Frame()
+        self.frame = initial_frame.copy()
+        self._current_frame = initial_frame.copy()
         self.write_setup()
 
-    def __del__(self):
-        try:
-            self._gpio.cleanup()
-        except AttributeError:
-            pass
+    # def __del__(self):
+    #     try:
+    #         self._gpio.cleanup()
+    #     except AttributeError:
+    #         pass
 
     @property
     def bl_value(self):
@@ -314,12 +376,19 @@ class Screen:
 
 
 def test():
+    print('读取二进制点阵格式的 Unifont 字体... ', end='', flush=True)
+    time_start = time_ns()
+    with open('unifont.bin', 'rb') as f:
+        font_bitmap = f.read()
+    print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
+
     print('创建屏幕实例并初始化... ', end='', flush=True)
     time_start = time_ns()
     s = Screen(
         pin_sid=16,
         pin_sclk=18,
-        pin_bla=32
+        pin_bla=32,
+        initial_frame=TextFrame(font_bitmap)
     )
     print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
@@ -333,13 +402,17 @@ def test():
     s.refresh_force()
     print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
-    print('向帧缓存中绘制图案... ', end='', flush=True)
+    print('向帧缓存中绘制图案和文字... ', end='', flush=True)
     time_start = time_ns()
     s.frame.fill(True)
-    s.frame.draw_rectangle(10, 10, 100, 50, False)
-    s.frame.draw_rectangle(30, 30, 41, 41, True)
-    s.frame.draw_rectangle(30, 30, 40, 40, False)
-    s.frame.draw_rectangle(29, 29, 39, 39, True)
+    s.frame.draw_text(
+        0, 0,
+        'abcdefghijklmnop\n'
+        'qrstuvwxyz123456\n'
+        '7890!@#$%^&*()_+\n'
+        '中国智造，惠及全球',
+        False
+    )
     print('用时 %.3f 毫秒' % ((time_ns() - time_start) / 1000000))
 
     print('刷新屏幕缓冲区... ', end='', flush=True)

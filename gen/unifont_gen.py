@@ -5,7 +5,6 @@
 '''转换 TrueType 格式的 Unifont 字体到二进制点阵格式'''
 
 from freetype import Face
-from math import floor, ceil
 from time import time
 
 # 导入 ../util/util.py 里的函数
@@ -19,24 +18,28 @@ ask_output = _util.ask_output
 group_iter = _util.group_iter
 
 
-def convert_char(face, char, width_expected, height_expected):
+def convert_char(face, char):
     '''将单个字符转换为二进制点阵格式'''
     # 加载点阵
     face.load_char(char)
     width = face.glyph.bitmap.width
-    if width == 0:
-        return b'\x00' * (width_expected * height_expected // 8)
     height = face.glyph.bitmap.rows
+    left = face.glyph.bitmap_left
+    top = face.glyph.bitmap_top
+
+    if width == 0 or left < 0:
+        return b'\x00' * (16 * 16 // 8)
+
     bitmap = ''.join(map(
         lambda x: '1' if x else '0',
         face.glyph.bitmap.buffer
     ))
 
     # 计算补充的 0
-    zeros_top = '0' * width_expected * floor((height_expected - height) / 2)
-    zeros_bottom = '0' * width_expected * ceil((height_expected - height) / 2)
-    zeros_left = '0' * floor((width_expected - width) / 2)
-    zeros_right = '0' * ceil((width_expected - width) / 2)
+    zeros_top = '0' * 16 * (16 - 2 - top)
+    zeros_bottom = '0' * 16 * (2 + top - height)
+    zeros_left = '0' * left
+    zeros_right = '0' * (16 - left - width)
 
     # 将点阵转换为二进制字面值
     buffer = zeros_top
@@ -48,7 +51,10 @@ def convert_char(face, char, width_expected, height_expected):
     buffer += zeros_bottom
 
     # 将二进制字面值按字节分组，转换为数字，再转换为字节串
-    return bytes(map(lambda x: int(''.join(x), base=2), group_iter(buffer, 8)))
+    return bytes(map(
+        lambda x: int(''.join(x), base=2),
+        group_iter(buffer, 8)
+    ))
 
 
 def main():
@@ -65,12 +71,12 @@ def main():
 
     print('正在写入内存... ', flush=True)
     time_start = time()
-    for char in range(128):  # ASCII
-        print('ASCII:', char, end='\r', flush=True)
-        buffer += convert_char(face, char, 8, 16)
-    for char in range(128, 65536):  # Unicode
+    for char in range(65536):
         print('Unicode:', char, end='\r', flush=True)
-        buffer += convert_char(face, char, 16, 16)
+        b = convert_char(face, char)
+        if len(b) != 16 * 16 // 8:
+            raise RuntimeError(char, chr(char))
+        buffer += b
     print('\n用时 %.2f 秒' % (time() - time_start))
 
     print('正在写入磁盘... ', end='', flush=True)

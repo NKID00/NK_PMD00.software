@@ -139,3 +139,7 @@ cython_debug/
 
 # Viztracer result
 result.html
+
+# Generated Data Files
+ecdict.db
+unifont.bin
