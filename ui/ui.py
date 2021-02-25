@@ -574,7 +574,7 @@ def main():
                     settings.refresh()
                     status = 'settings'
                 else:  # About
-                    about._select_index = 0
+                    about._select_index = 1
                     about.refresh()
                     status = 'about'
             else:
