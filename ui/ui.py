@@ -566,13 +566,15 @@ def main():
         if status == 'menu':
             if event == EVENT_RIGHT:
                 if menu.select_index == 0:  # Dictionary
-                    dictionary.word = ''
+                    dictionary._word = ''
                     dictionary.refresh()
                     status = 'dictionary'
                 elif menu.select_index == 1:  # Settings
+                    settings._select_index = 0
                     settings.refresh()
                     status = 'settings'
                 else:  # About
+                    about._select_index = 0
                     about.refresh()
                     status = 'about'
             else:
