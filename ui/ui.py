@@ -259,7 +259,7 @@ class DictionaryUI(MenuUI):
             self._display_information = value
             if value:
                 self._select_index_word = self._select_index
-                self._title = self._word
+                self._title = self.items[self.select_index]
                 self._invert_selected = False
                 self._update_items_information()
             else:
