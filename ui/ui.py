@@ -328,21 +328,22 @@ class DictionaryUI(MenuUI):
 
     def process(self, event):
         '''处理事件'''
+        print(self.display_information, event)
         if self.display_information:
-            if len(self.items) < 4:
-                return
-            if event == EVENT_UP:
-                if self.select_index == 1:
-                    self.select_index = len(self.items) - 2
-                else:
-                    self.select_index -= 1
-            elif event == EVENT_DOWN:
-                if self.select_index >= len(self.items) - 2:
-                    self.select_index = 1
-                else:
-                    self.select_index += 1
-            elif event_is_left_or_backspace(event):
+            if event_is_left_or_backspace(event):
                 self.display_information = False
+                return
+            elif len(self.items) >= 4:
+                if event == EVENT_UP:
+                    if self.select_index == 1:
+                        self.select_index = len(self.items) - 2
+                    else:
+                        self.select_index -= 1
+                elif event == EVENT_DOWN:
+                    if self.select_index >= len(self.items) - 2:
+                        self.select_index = 1
+                    else:
+                        self.select_index += 1
         else:
             super().process(event)
             if event == EVENT_BACKSPACE:
@@ -524,7 +525,9 @@ def init():
         '0/NK_PMD00.hardw\n'
         'are\n\n'
         # 234567890123456| <- 屏幕显示范围
-        'NK_PortableMultifunctionalDevice00\n\n'
+        'NK_PortableMult-\n'
+        'ifunctionalDevi-\n'
+        'ce00\n\n'
         'Copyright 2020-\n'
         '2021 NKID00\n\n'
         'Under MIT Licen-\n'
@@ -566,7 +569,7 @@ def main():
         if status == 'menu':
             if event == EVENT_RIGHT:
                 if menu.select_index == 0:  # Dictionary
-                    dictionary._word = ''
+                    dictionary.word = ''
                     dictionary.refresh()
                     status = 'dictionary'
                 elif menu.select_index == 1:  # Settings
