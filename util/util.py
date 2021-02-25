@@ -33,16 +33,22 @@ def ask_output():
 
 def copy_item(
     target: dict, source: dict, key, target_key=None,
-    default=None, factory=None
+    default=None, factory=None, replace_newline: bool = False
 ):
     '''如果不是空的就复制'''
     if target_key is None:
         target_key = key
     if key in source and source[key] != '':
-        if factory is not None:
-            target[target_key] = factory(source[key])
+        if replace_newline:
+            if factory is not None:
+                target[target_key] = factory(source[key].replace('\\n', '\n'))
+            else:
+                target[target_key] = source[key].replace('\\n', '\n')
         else:
-            target[target_key] = source[key]
+            if factory is not None:
+                target[target_key] = factory(source[key])
+            else:
+                target[target_key] = source[key]
     elif default is not None:
         target[target_key] = default
 
