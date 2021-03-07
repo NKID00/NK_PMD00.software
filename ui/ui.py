@@ -4,6 +4,8 @@
 
 from collections import OrderedDict
 from time import time_ns
+from PIL.Image import new as image_new
+from PIL.ImageDraw import Draw as image_draw
 
 from g12864 import TextFrame, Screen
 
@@ -20,6 +22,7 @@ EVENT_DOWN = 'do'
 EVENT_LEFT = 'le'
 EVENT_RIGHT = 'ri'
 EVENT_BACKSPACE = 'ba'
+EVENT_SCREENSHOT = 'sc'
 
 
 def word_warp(s: str, width: int = 16):
@@ -328,7 +331,6 @@ class DictionaryUI(MenuUI):
 
     def process(self, event):
         '''处理事件'''
-        print(self.display_information, event)
         if self.display_information:
             if event_is_left_or_backspace(event):
                 self.display_information = False
@@ -390,7 +392,7 @@ class SettingsUI(MenuUI):
             else:
                 items.append('  %s' % k)
         self.items = items
-    
+
     def process(self, event):
         '''处理事件'''
         super().process(event)
@@ -437,6 +439,8 @@ def get_event():
             'do - down\n'
             'le - left\n'
             'ri - right\n'
+            'ba - backspace\n'
+            'sc - screenshot\n'
             '<letter> - letter\n'
         )
         return None
@@ -566,44 +570,54 @@ def main():
         time_start = time_ns()
         if event is None or event == '':
             continue
-        if status == 'menu':
-            if event == EVENT_RIGHT:
-                if menu.select_index == 0:  # Dictionary
-                    dictionary.word = ''
-                    dictionary.refresh()
-                    status = 'dictionary'
-                elif menu.select_index == 1:  # Settings
-                    settings._select_index = 0
-                    settings.refresh()
-                    status = 'settings'
-                else:  # About
-                    about._select_index = 1
-                    about.refresh()
-                    status = 'about'
-            else:
-                menu.process(event)
-        elif status == 'dictionary':
-            if event == EVENT_LEFT:
-                if dictionary.display_information:
-                    dictionary.process(event)
+        elif event == EVENT_SCREENSHOT:
+            image = image_new('RGBA', (128, 64))
+            draw = image_draw(image)
+            current_frame = screen.current_frame
+            for x in range(128):
+                for y in range(64):
+                    if current_frame[x, y]:
+                        draw.point((x, y), (0, 0, 0, 255))
+            image.save('./%s.png' % time_ns())
+        else:
+            if status == 'menu':
+                if event == EVENT_RIGHT:
+                    if menu.select_index == 0:  # Dictionary
+                        dictionary.word = ''
+                        dictionary.refresh()
+                        status = 'dictionary'
+                    elif menu.select_index == 1:  # Settings
+                        settings._select_index = 0
+                        settings.refresh()
+                        status = 'settings'
+                    else:  # About
+                        about._select_index = 1
+                        about.refresh()
+                        status = 'about'
                 else:
+                    menu.process(event)
+            elif status == 'dictionary':
+                if event == EVENT_LEFT:
+                    if dictionary.display_information:
+                        dictionary.process(event)
+                    else:
+                        menu.refresh()
+                        status = 'menu'
+                else:
+                    dictionary.process(event)
+            elif status == 'settings':
+                if event_is_left_or_backspace(event):
                     menu.refresh()
                     status = 'menu'
-            else:
-                dictionary.process(event)
-        elif status == 'settings':
-            if event_is_left_or_backspace(event):
-                menu.refresh()
-                status = 'menu'
-            else:
-                settings.process(event)
-        elif status == 'about':
-            if event_is_left_or_backspace(event):
-                menu.refresh()
-                status = 'menu'
-            else:
-                about.process(event)
-        screen.refresh()
+                else:
+                    settings.process(event)
+            elif status == 'about':
+                if event_is_left_or_backspace(event):
+                    menu.refresh()
+                    status = 'menu'
+                else:
+                    about.process(event)
+            screen.refresh()
         print('用时 %.3f 毫秒。' % ((time_ns() - time_start) / 1000000))
 
 

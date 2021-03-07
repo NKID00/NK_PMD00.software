@@ -140,6 +140,9 @@ cython_debug/
 # Viztracer result
 result.html
 
-# Generated Data Files
+# Generated data files
 ecdict.db
 unifont.bin
+
+# Screen shots
+*.png

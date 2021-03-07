@@ -77,7 +77,7 @@ class Frame:
         '''获取坐标位置的像素'''
         if x >= SCREEN_WIDTH or y >= SCREEN_HEIGHT:
             return False
-        return self.get_byte(x, y) & (1 << (x % 8)) != 0
+        return self.get_byte(x, y) & (0b1000_0000 >> (x % 8)) != 0
 
     def set_pixel(self, x: int, y: int, value: bool):
         '''设置坐标位置的像素'''
@@ -237,6 +237,11 @@ class Screen:
     def bl_value(self, value):
         self._bla.ChangeDutyCycle(value)
         self._bl_value = value
+    
+    @property
+    def current_frame(self):
+        '''当前显示的帧缓存'''
+        return self._current_frame.copy()
 
     def _write_bit(self, value: bool):
         '''写入位'''
