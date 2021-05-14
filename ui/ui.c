@@ -1,3 +1,4 @@
+/*
 # 使用 MIT License 进行许可。
 # SPDX-License-Identifier: MIT
 # 版权所有 © 2020-2021 NKID00
@@ -626,3 +627,4 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         print('已退出。', flush=True)
+*/
