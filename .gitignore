@@ -146,3 +146,6 @@ unifont.bin
 
 # Screen shots
 *.png
+
+# Headers
+include/

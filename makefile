@@ -1,15 +1,18 @@
-./ui/build/%.o: ./ui/%.c
-    gcc -c %< -o %@ 
-
-./ui/build/ui: ./ui/build/ui.o ./ui/build/g12864.o
-    gcc %< -o %@
-
 .PHONY: run build clean
 
-build: ./ui/build/ui
+build:
+	mkdir -p build/
+	$(MAKE) -C ui/ build
 
 run: build
-    ./ui/build/ui
+	./ui/build/ui
+
+build_debug:
+	mkdir -p build/
+	$(MAKE) -C ui/ build_debug
+
+debug: build_debug
+	gdb ./ui/build/ui-dbg
 
 clean:
-    rm -r build/
+	$(MAKE) -C ui/ clean
