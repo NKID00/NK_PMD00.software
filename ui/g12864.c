@@ -4,6 +4,8 @@
  * 版权所有 © 2020-2021 NKID00
  */
 
+#define _GNU_SOURCE
+
 #include "g12864.h"
 
 #include <gpiod.h>
@@ -12,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
+#include <time.h>
 
 #define G_SCREEN_PIXELS G_SCREEN_WIDTH *G_SCREEN_HEIGHT
 #define G_SCREEN_X_BYTES G_SCREEN_WIDTH / 8
@@ -166,7 +169,7 @@ void g_fb_draw_char(struct g_fb *fb, int x, int y, wchar_t ch, bool value, uint8
     }
 }
 
-void g_fb_draw_text(struct g_fb *fb, int x, int y, wchar_t *text, bool value, uint8_t *font)
+void g_fb_draw_text(struct g_fb *fb, int x, int y, const wchar_t *text, bool value, uint8_t *font)
 {
     int x0 = x;
     for (; *text != L'\0'; text++)

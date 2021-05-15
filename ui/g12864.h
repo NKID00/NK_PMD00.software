@@ -11,9 +11,6 @@
 #define G_BL_ON 1
 #define G_BL_OFF 0
 
-#define g_info(s) printf("[%s:%ld] %s... ", __func__, __LINE__, s)
-#define g_info_done() printf("完成\n")
-
 /**
  * @brief 帧缓存（Frame Buffer）
  */
@@ -90,7 +87,7 @@ extern "C"
     /**
  * @brief 在帧缓存上绘制字符串
  */
-    void g_fb_draw_text(struct g_fb *fb, int x, int y, wchar_t *text, bool value, uint8_t *font);
+    void g_fb_draw_text(struct g_fb *fb, int x, int y, const wchar_t *text, bool value, uint8_t *font);
 
     /**
  * @brief 短暂延时

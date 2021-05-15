@@ -1,0 +1,499 @@
+/**
+ * 使用 MIT License 进行许可。
+ * SPDX-License-Identifier: MIT
+ * 版权所有 © 2020-2021 NKID00
+ */
+
+#include <gpiod.h>
+#include <cstdint>
+#include <cstdlib>
+#include <cstdio>
+#include <ctime>
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <unistd.h>
+
+#include "g12864.h"
+
+constexpr int SCREEN_SID = 23;  // 物理编号 16
+constexpr int SCREEN_SCLK = 24; // 物理编号 18
+constexpr int SCREEN_BLA = 12;  // 物理编号 32
+
+constexpr int K_ROW0 = 4;  // 物理编号 7
+constexpr int K_ROW1 = 17; // 物理编号 11
+constexpr int K_ROW2 = 27; // 物理编号 13
+constexpr int K_ROW3 = 22; // 物理编号 15
+constexpr int K_COL0 = 5;  // 物理编号 29
+constexpr int K_COL1 = 6;  // 物理编号 31
+constexpr int K_COL2 = 13; // 物理编号 33
+constexpr int K_COL3 = 26; // 物理编号 37
+
+constexpr const char* K_CONSUMER = "keyboard";
+
+constexpr int K_LOW = 0;
+constexpr int K_HIGH = 1;
+
+enum class Event
+{
+    Key1,
+    Key2,
+    Key3,
+    Key4,
+    Key5,
+    Key6,
+    Key7,
+    Key8,
+    Key9,
+    Up,
+    Down,
+    Left,
+    Right,
+    Back,
+    None
+};
+
+#define g_info(s) std::cout << "[" << __func__ << ":" << __LINE__ << "] " << s << "... " << std::flush
+#define g_info_done() std::cout << "完成" << std::endl
+
+#define dt_ms(t0, t1) (((t1).tv_sec - (t0).tv_sec) * 1000 + ((t1).tv_nsec - (t0).tv_nsec) / 1000000.0)
+
+std::uint8_t *font;
+
+class UI
+{
+public:
+    UI(struct g_fb *fb) : fb(fb), selected(0), highlight_selected(false) {}
+
+    void process(Event event)
+    {
+        switch (event)
+        {
+        case Event::Up:
+            if (selected > 0)
+            {
+                selected--;
+                refresh();
+            }
+            break;
+        case Event::Down:
+            if (selected < 3)
+            {
+                selected++;
+                refresh();
+            }
+            break;
+        }
+    }
+
+    void refresh()
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            if (highlight_selected && i == selected)
+            {
+                g_fb_draw_rect(fb, 0, i * 16, 127, i * 16 + 15, true);
+                g_fb_draw_text(fb, 0, i * 16, items[i].c_str(), false, font);
+            }
+            else
+            {
+                g_fb_draw_text(fb, 0, i * 16, items[i].c_str(), true, font);
+            }
+        }
+    }
+
+protected:
+    struct g_fb *fb;
+    std::wstring items[4];
+    int selected;
+    bool highlight_selected;
+};
+
+class TitleUI : public UI
+{
+public:
+    TitleUI(struct g_fb *fb) : UI(fb), selected(0), highlight_selected(false) {}
+
+    void process(Event event)
+    {
+        switch (event)
+        {
+        case Event::Up:
+            if (selected > 0)
+            {
+                selected--;
+                refresh();
+            }
+            break;
+        case Event::Down:
+            if (selected < items.size())
+            {
+                selected++;
+                refresh();
+            }
+            break;
+        }
+    }
+
+    void refresh()
+    {
+        UI::items[0] = title;
+        if (items.size() == 0)
+        {
+            UI::items[1] = L"(none)";
+            UI::items[2] = L"";
+            UI::items[3] = L"";
+            UI::highlight_selected = false;
+        }
+        else if (items.size() <= 3)
+        {
+            for (size_t i = 0; i < 3; i++)
+            {
+                if (items.size() > i)
+                {
+                    UI::items[i + 1] = items[i];
+                }
+                else
+                {
+                    UI::items[i + 1] = L"";
+                }
+            }
+            UI::selected = selected + 1;
+            UI::highlight_selected = highlight_selected;
+        }
+        else
+        {
+            if (selected == 0)
+            {
+                for (size_t i = 0; i < 3; i++)
+                {
+                    UI::items[i + 1] = items[i];
+                }
+                UI::selected = 1;
+            }
+            else if (selected == items.size() - 1)
+            {
+                for (size_t i = 0; i < 3; i++)
+                {
+                    UI::items[3 - i] = items[selected - i];
+                }
+                UI::selected = 3;
+            }
+            else
+            {
+                UI::items[1] = items[selected - 1];
+                UI::items[2] = items[selected];
+                UI::items[3] = items[selected + 1];
+                UI::selected = 2;
+            }
+            UI::highlight_selected = highlight_selected;
+        }
+        UI::refresh();
+    }
+
+protected:
+    std::wstring title;
+    std::vector<std::wstring> items;
+    size_t selected;
+    bool highlight_selected;
+};
+
+class DictionaryUI : public TitleUI
+{
+public:
+    DictionaryUI(struct g_fb *fb) : TitleUI(fb), word(L""), selected(0), display_info(false), pervious_event(Event::None) {}
+
+    /*
+    abc  def  gh   Up(1)
+    ijk  lmn  opq  Down(2)
+    rst  uvw  xyz  Left(3)
+              Back Right
+    */
+    void process(Event event)
+    {
+        if (display_info)
+        {
+            switch (event)
+            {
+            case Event::Up:
+                if (selected > 0)
+                {
+                    selected--;
+                    refresh();
+                }
+                break;
+            case Event::Down:
+                if (selected < items.size())
+                {
+                    selected++;
+                    refresh();
+                }
+                break;
+            case Event::Left:
+            case Event::Back:
+                display_info = false;
+                selected = pervious_selected;
+                update_items_words();
+                refresh();
+                break;
+            }
+        }
+        else
+        {
+            switch (event)
+            {
+            case Event::Key1:
+            case Event::Key2:
+            case Event::Key3:
+            case Event::Key4:
+            case Event::Key5:
+            case Event::Key6:
+            case Event::Key7:
+            case Event::Key8:
+            case Event::Key9:
+                pervious_event = event;
+                break;
+            case Event::Up:
+                if (pervious_event == Event::None)
+                {
+                    if (selected > 0)
+                    {
+                        selected--;
+                        refresh();
+                    }
+                }
+                else
+                {
+                    switch (pervious_event)
+                    {
+                    case Event::Key1:
+                        word_append(L"a");
+                        break;
+                    case Event::Key2:
+                        word_append(L"d");
+                        break;
+                    case Event::Key3:
+                        word_append(L"g");
+                        break;
+                    case Event::Key4:
+                        word_append(L"i");
+                        break;
+                    case Event::Key5:
+                        word_append(L"l");
+                        break;
+                    case Event::Key6:
+                        word_append(L"o");
+                        break;
+                    case Event::Key7:
+                        word_append(L"r");
+                        break;
+                    case Event::Key8:
+                        word_append(L"u");
+                        break;
+                    case Event::Key9:
+                        word_append(L"x");
+                        break;
+                    }
+                    pervious_event = Event::None;
+                }
+                break;
+            case Event::Down:
+                if (pervious_event == Event::None)
+                {
+                    if (selected < items.size())
+                    {
+                        selected++;
+                        refresh();
+                    }
+                }
+                else
+                {
+                    switch (pervious_event)
+                    {
+                    case Event::Key1:
+                        word_append(L"b");
+                        break;
+                    case Event::Key2:
+                        word_append(L"e");
+                        break;
+                    case Event::Key3:
+                        word_append(L"h");
+                        break;
+                    case Event::Key4:
+                        word_append(L"j");
+                        break;
+                    case Event::Key5:
+                        word_append(L"m");
+                        break;
+                    case Event::Key6:
+                        word_append(L"p");
+                        break;
+                    case Event::Key7:
+                        word_append(L"s");
+                        break;
+                    case Event::Key8:
+                        word_append(L"v");
+                        break;
+                    case Event::Key9:
+                        word_append(L"y");
+                        break;
+                    }
+                    pervious_event = Event::None;
+                }
+                break;
+            case Event::Left:
+                if (pervious_event == Event::None)
+                {
+                    if (!word.empty())
+                    {
+                        word.pop_back();
+                        update_items_words();
+                        refresh();
+                    }
+                }
+                else
+                {
+                    switch (pervious_event)
+                    {
+                    case Event::Key1:
+                        word_append(L"c");
+                        break;
+                    case Event::Key2:
+                        word_append(L"f");
+                        break;
+                    case Event::Key4:
+                        word_append(L"k");
+                        break;
+                    case Event::Key5:
+                        word_append(L"n");
+                        break;
+                    case Event::Key6:
+                        word_append(L"q");
+                        break;
+                    case Event::Key7:
+                        word_append(L"t");
+                        break;
+                    case Event::Key8:
+                        word_append(L"w");
+                        break;
+                    case Event::Key9:
+                        word_append(L"z");
+                        break;
+                    }
+                    pervious_event = Event::None;
+                }
+                break;
+            case Event::Right:
+                pervious_event = Event::None;
+                pervious_selected = selected;
+                display_info = true;
+                title = items[selected];
+                update_items_info();
+                refresh();
+            case Event::Back:
+                pervious_event = Event::None;
+                if (!word.empty())
+                {
+                    word = L"";
+                    update_items_words();
+                    refresh();
+                }
+            }
+        }
+    }
+
+    void refresh()
+    {
+        highlight_selected = !display_info;
+        TitleUI::refresh();
+    }
+
+    void word_append(const wchar_t *s)
+    {
+        word_append(s);
+        update_items_words();
+        refresh();
+    }
+
+    void update_items_words()
+    {
+    }
+
+    void update_items_info()
+    {
+    }
+
+protected:
+    int selected;
+    std::wstring word;
+    bool display_info;
+    Event pervious_event;
+    int pervious_selected;
+};
+
+int main()
+{
+    g_info("载入字体");
+    auto font_f = std::fopen("unifont.bin", "r");
+    font = reinterpret_cast<std::uint8_t *>(std::malloc(sizeof(uint8_t) * 16 * 16 * 65536 / 8));
+    std::fread(font, sizeof(uint8_t), 16 * 16 * 65536 / 8, font_f);
+    std::fclose(font_f);
+    font_f = nullptr;
+    g_info_done();
+
+    g_info("初始化屏幕");
+    auto chip = gpiod_chip_open("/dev/gpiochip0");
+    auto sc = g_sc_create(gpiod_chip_get_line(chip, SCREEN_SID),
+                          gpiod_chip_get_line(chip, SCREEN_SCLK),
+                          gpiod_chip_get_line(chip, SCREEN_BLA));
+    g_sc_set_bl(sc, G_BL_ON);
+    g_info_done();
+
+    g_info("强制刷新屏幕");
+    g_sc_refresh_force(sc);
+    g_info_done();
+
+    g_info("初始化键盘");
+    auto row0 = gpiod_chip_get_line(chip, K_ROW0);
+    auto row1 = gpiod_chip_get_line(chip, K_ROW1);
+    auto row2 = gpiod_chip_get_line(chip, K_ROW2);
+    auto row3 = gpiod_chip_get_line(chip, K_ROW3);
+    gpiod_line_request_output(row0, K_CONSUMER, K_LOW);
+    gpiod_line_request_output(row1, K_CONSUMER, K_LOW);
+    gpiod_line_request_output(row2, K_CONSUMER, K_LOW);
+    gpiod_line_request_output(row3, K_CONSUMER, K_LOW);
+    auto col0 = gpiod_chip_get_line(chip, K_COL0);
+    auto col1 = gpiod_chip_get_line(chip, K_COL1);
+    auto col2 = gpiod_chip_get_line(chip, K_COL2);
+    auto col3 = gpiod_chip_get_line(chip, K_COL3);
+    gpiod_line_request_input(row0, K_CONSUMER);
+    gpiod_line_request_input(row1, K_CONSUMER);
+    gpiod_line_request_input(row2, K_CONSUMER);
+    gpiod_line_request_input(row3, K_CONSUMER);
+    g_info_done();
+
+    g_info("初始化其他杂项");
+    auto fb = g_sc_get_fb(sc);
+    auto ui = DictionaryUI(fb);
+    static struct timespec t = {.tv_sec = 0, .tv_nsec = 5000000};
+    g_info_done();
+
+    g_info("进入主循环") << std::endl;
+    while (true)
+    {
+        g_info("等待事件");
+        auto event = Event::None;
+        while (true)
+        {
+            nanosleep(&t, nullptr);
+        }
+        g_info_done();
+        g_info("处理事件");
+        ui.process(event);
+        g_info_done();
+    }
+
+    g_sc_destroy(sc);
+    gpiod_chip_close(chip);
+    std::free(font);
+}

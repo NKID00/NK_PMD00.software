@@ -149,3 +149,6 @@ unifont.bin
 
 # Headers
 include/
+
+# Builds
+ui/build/
