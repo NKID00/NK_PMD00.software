@@ -4,7 +4,11 @@
  * 版权所有 © 2020-2021 NKID00
  */
 
+#include <unistd.h>
+
 #include <gpiod.h>
+#include "sqlite3.h"
+
 #include <cstdint>
 #include <cstdlib>
 #include <cstdio>
@@ -12,7 +16,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include <unistd.h>
+#include <sstream>
 
 #include "g12864.h"
 
@@ -29,7 +33,7 @@ constexpr int K_COL1 = 6;  // 物理编号 31
 constexpr int K_COL2 = 13; // 物理编号 33
 constexpr int K_COL3 = 26; // 物理编号 37
 
-constexpr const char* K_CONSUMER = "keyboard";
+constexpr const char *K_CONSUMER = "keyboard";
 
 constexpr int K_LOW = 0;
 constexpr int K_HIGH = 1;
@@ -198,10 +202,18 @@ protected:
     bool highlight_selected;
 };
 
+static int sqlite3_callback(void *data, int argc, char **argv, char **azColName)
+{
+    return 0;
+}
+
 class DictionaryUI : public TitleUI
 {
 public:
-    DictionaryUI(struct g_fb *fb) : TitleUI(fb), word(L""), selected(0), display_info(false), pervious_event(Event::None) {}
+    DictionaryUI(struct g_fb *fb, const char *db_file) : TitleUI(fb), word(L""), selected(0), display_info(false), pervious_event(Event::None)
+    {
+        sqlite3_open(db_file, &db);
+    }
 
     /*
     abc  def  gh   Up(1)
@@ -417,6 +429,14 @@ public:
 
     void update_items_words()
     {
+        std::string w;
+        for (auto &&c : word)
+        {
+            w.push_back(static_cast<char>(c));
+        }
+        std::stringstream ss;
+        ss <<"SELECT * FROM ecdict WHERE word LIKE " << w <<" AND word NOT LIKE \"% %\" AND collins > 0 AND (translation LIKE \"%\" + CHAR(10) + \"%\" OR (translation NOT LIKE \"%abbr.%\" AND translation NOT LIKE \"%[网络]%\" AND translation NOT LIKE \"%[地名]%\" AND translation NOT LIKE \"%[医]%\" AND translation NOT LIKE \"%[药]%\" AND translation NOT LIKE \"%[化]%\")) AND word NOT LIKE \"%(%\" AND word NOT LIKE \"%（%\" LIMIT 20;";
+        sqlite3_exec(db, ss.str().cstr(), sqlite3_callback, this, nullptr);    
     }
 
     void update_items_info()
@@ -429,6 +449,7 @@ protected:
     bool display_info;
     Event pervious_event;
     int pervious_selected;
+    sqlite3 *db;
 };
 
 int main()
@@ -474,7 +495,7 @@ int main()
 
     g_info("初始化其他杂项");
     auto fb = g_sc_get_fb(sc);
-    auto ui = DictionaryUI(fb);
+    auto ui = DictionaryUI(fb, "dict/ecdict.db");
     static struct timespec t = {.tv_sec = 0, .tv_nsec = 5000000};
     g_info_done();
 
@@ -493,7 +514,11 @@ int main()
         g_info_done();
     }
 
+    // 永远不会运行到这里
+
+    /*
     g_sc_destroy(sc);
     gpiod_chip_close(chip);
     std::free(font);
+    */
 }
