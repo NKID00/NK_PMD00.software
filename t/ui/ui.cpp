@@ -478,13 +478,6 @@ public:
     {
     }
 
-    void t()
-    {
-        word = L"abandon";
-        update_items_words();
-        refresh();
-    }
-
 protected:
     std::wstring word;
     bool display_info;
@@ -549,7 +542,9 @@ int main()
     g_info_done();
 
     g_info("进入主循环") << std::endl;
-    ui.t();
+    ui.process(Event::Key1);
+    ui.process(Event::Up);
+    ui.process(Event::Down);
     g_sc_refresh(sc);
     while (true)
     {
