@@ -21,6 +21,16 @@
 
 #include "g12864/g12864.h"
 
+#ifndef NK_PMD00_VERSION
+#define NK_PMD00_VERSION "未知"
+#endif
+#ifndef NK_PMD00_COMMIT
+#define NK_PMD00_COMMIT "未知"
+#endif
+#ifndef NK_PMD00_BUILD
+#define NK_PMD00_BUILD "未知"
+#endif
+
 constexpr int SCREEN_SID = 23;  // 物理编号 16
 constexpr int SCREEN_SCLK = 24; // 物理编号 18
 constexpr int SCREEN_BLA = 12;  // 物理编号 32
@@ -58,7 +68,11 @@ enum class Event
     None
 };
 
+#ifndef DEBUG
+#define g_info(s) std::cout << s << "... " << std::flush
+#else
 #define g_info(s) std::cout << "[" << __func__ << ":" << __LINE__ << "] " << s << "... " << std::flush
+#endif
 #define g_info_done() std::cout << "完成" << std::endl
 
 #define dt_ms(t0, t1) (((t1).tv_sec - (t0).tv_sec) * 1000 + ((t1).tv_nsec - (t0).tv_nsec) / 1000000.0)
@@ -508,6 +522,18 @@ static int sqlite3_words_callback(void *data, int argc, char **argv, char **col_
 
 int main()
 {
+    std::cout << "NK_PMD00"
+              << "\n版本 " << NK_PMD00_VERSION << " (" << NK_PMD00_COMMIT << ")"
+              << "\n构建时间 " << NK_PMD00_BUILD
+#ifdef DEBUG
+              << "\n调试模式 "
+              << "c++ " << __cplusplus
+              << ", posix " << _POSIX_VERSION
+              << ", unix " << _XOPEN_VERSION
+              << ", gcc " << __GNUC__ << "." << __GNUC_MINOR__ << "." << __GNUC_PATCHLEVEL__
+#endif
+              << "\n版权所有 © 2020-2021 NKID00\n使用 MIT License 进行许可\n"
+              << std::endl;
     g_info("载入字体");
     auto font_f = std::fopen("unifont.bin", "r");
     font = reinterpret_cast<std::uint8_t *>(std::malloc(sizeof(uint8_t) * 16 * 16 * 65536 / 8));
@@ -557,19 +583,6 @@ int main()
     g_info("进入主循环") << std::endl;
     ui.t();
     g_sc_refresh(sc);
-
-    struct timespec t0, t1;
-    
-    clock_gettime(CLOCK_MONOTONIC, &t0);
-    for (size_t i = 0; i < 100; i++)
-    {
-        ui.t();
-        g_sc_refresh(sc);
-        ui.t2();
-        g_sc_refresh(sc);
-    }
-    clock_gettime(CLOCK_MONOTONIC, &t1);
-    std::cout << dt_ms(t0, t1) << std::endl;
 
     while (true)
     {

@@ -7,9 +7,9 @@ build:
 run: build
 	./ui/build/ui
 
-build_debug:
+build-debug:
 	mkdir -p ui/build/
-	$(MAKE) -C ui/ build_debug
+	$(MAKE) -C ui/ build-debug
 
 debug: build_debug
 	gdb ./ui/build/ui-dbg
