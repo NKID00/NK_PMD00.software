@@ -19,7 +19,7 @@
 #include <vector>
 #include <sstream>
 
-#include "g12864.h"
+#include "g12864/g12864.h"
 
 constexpr int SCREEN_SID = 23;  // 物理编号 16
 constexpr int SCREEN_SCLK = 24; // 物理编号 18
