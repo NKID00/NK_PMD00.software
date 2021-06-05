@@ -1,3 +1,6 @@
-[submodule "ui/g12864"]
-	path = ui/g12864
+[submodule "g12864"]
+	path = src/ui/g12864
 	url = https://github.com/NKID00/g12864.git
+[submodule "sqlite"]
+	path = src/dict/sqlite
+	url = https://github.com/sqlite/sqlite.git
