@@ -480,6 +480,13 @@ public:
 
     void t()
     {
+        word = L"abandona";
+        update_items_words();
+        refresh();
+    }
+
+    void t2()
+    {
         word = L"abandon";
         update_items_words();
         refresh();
@@ -542,7 +549,6 @@ int main()
     static struct timespec t = {.tv_sec = 0, .tv_nsec = 5000000};
     g_info_done();
 
-
     g_info("强制刷新屏幕");
     ui.refresh();
     g_sc_refresh_force(sc);
@@ -551,6 +557,20 @@ int main()
     g_info("进入主循环") << std::endl;
     ui.t();
     g_sc_refresh(sc);
+
+    struct timespec t0, t1;
+    
+    clock_gettime(CLOCK_MONOTONIC, &t0);
+    for (size_t i = 0; i < 100; i++)
+    {
+        ui.t();
+        g_sc_refresh(sc);
+        ui.t2();
+        g_sc_refresh(sc);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &t1);
+    std::cout << dt_ms(t0, t1) << std::endl;
+
     while (true)
     {
         g_info("等待事件");
