@@ -1,7 +1,9 @@
 .PHONY: build clean
 
-build: build/ui.cpp.o build/g12864.c.o build/sqlite3.c.o
-	g++ $^ -lgpiod -O3 -o build/ui
+build: build/ui
+
+build/ui: build/ui.cpp.o build/g12864.c.o build/sqlite3.c.o
+	g++ $^ -lgpiod -O3 -o $@
 
 build/sqlite3.c.o: sqlite3.c
 	gcc $^ -c -O3 --std=c11 -DSQLITE_THREADSAFE=0 -DSQLITE_OMIT_LOAD_EXTENSION -o $@
