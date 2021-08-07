@@ -15,18 +15,30 @@ INFOFLAGS = -DNK_PMD00_VERSION="\"$(shell date --date=$(shell git log --pretty="
 	-DNK_PMD00_COMMIT="\"$(shell git log --pretty="%h" -1)\"" \
 	-DNK_PMD00_BUILD="\"$(shell date --iso-8601=ns)\""
 
-.PHONY: build build-dbg clean
+.PHONY: build build-requirements build-dbg build-requirements-dbg clean sqlite
 
-build: build/NK_PMD00
+build: build-requirements build/NK_PMD00
 
-build/NK_PMD00: build/ui/main.cpp.o build/ui/ui.cpp.o build/ui/event.cpp.o \
-	build/ui/g12864/g12864.c.o build/dict/ecdict.cpp.o build/dict/sqlite3.c.o
+build-requirements: build/sqlite/sqlite3.c.o build/ui/g12864/g12864.c.o
+
+build/NK_PMD00: build/ui/main.cpp.o build/ui/ui.cpp.o \
+	build/ui/event.cpp.o build/dict/ecdict.cpp.o
 	$(CPPC) $^ $(LINKFLAGS) -o $@
 
-build/dict/sqlite3.c.o: dict/sqlite3.c.o
+build/sqlite/sqlite3.c.o: build/sqlite/sqlite3.c
 	$(CC) $^ $(CFLAGS) $(SQLITE3FLAGS) -o $@
 
-build/ui/main.cpp.o: ui/main.cpp.o
+build/sqlite/sqlite3.h: build/sqlite/sqlite3.c
+
+build/sqlite/sqlite3.c:
+	mkdir -p build/sqlite/
+	cd build/sqlite/ && ../../dict/sqlite/configure -q
+	$(MAKE) -C build/sqlite/ sqlite3.c
+
+build/ui/main.cpp.o: ui/main.cpp
+	$(CPPC) $^ $(CPPFLAGS) $(INFOFLAGS) -o $@
+
+build/dict/ecdict.cpp.o: dict/ecdict.cpp build/sqlite/sqlite3.h
 	$(CPPC) $^ $(CPPFLAGS) $(INFOFLAGS) -o $@
 
 build/%.c.o: %.c
@@ -35,10 +47,12 @@ build/%.c.o: %.c
 build/%.cpp.o: %.cpp
 	$(CPPC) $^ $(CPPFLAGS) -o $@
 
-build-debug: build/NK_PMD00-dbg
+build-dbg: build-requirements-dbg build/NK_PMD00-dbg
 
-build/NK_PMD00-dbg: build/ui/main.cpp.dbg.o build/ui/ui.cpp.dbg.o build/ui/event.cpp.dbg.o \
-	build/ui/g12864/g12864.c.dbg.o build/dict/ecdict.cpp.dbg.o build/dict/sqlite3.c.dbg.o
+build-requirements-dbg: build/sqlite/sqlite3.c.o build/ui/g12864/g12864.c.o
+
+build/NK_PMD00-dbg: build/ui/main.cpp.dbg.o build/ui/ui.cpp.dbg.o \
+	build/ui/event.cpp.dbg.o build/dict/ecdict.cpp.dbg.o
 	$(CPPC) $^ $(LINKFLAGS-DBG) -o $@
 
 build/dict/sqlite3.c.dbg.o: dict/sqlite3.c

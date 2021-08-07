@@ -33,6 +33,7 @@
 ## 构建
 
 ```sh
+$ sudo apt install tcl # sqlite3 编译时依赖
 $ git clone https://github.com/NKID00/NK_PMD00.software.git
 $ cd NK_PMD00.software
 $ git submodule update --init # 这一步需要下载约 200 MB 的数据

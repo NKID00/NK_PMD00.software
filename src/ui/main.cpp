@@ -4,23 +4,6 @@
  * 版权所有 © 2020-2021 NKID00
  */
 
-#include <unistd.h>
-
-#include <gpiod.h>
-#include "sqlite3.h"
-
-#include <cstdint>
-#include <cstdlib>
-#include <cstdio>
-#include <ctime>
-#include <cwchar>
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <sstream>
-
-#include "g12864/g12864.h"
-
 #include "ui.hpp"
 
 #ifndef NK_PMD00_VERSION
@@ -32,43 +15,6 @@
 #ifndef NK_PMD00_BUILD
 #define NK_PMD00_BUILD "未知"
 #endif
-
-constexpr int SCREEN_SID = 23;  // 物理编号 16
-constexpr int SCREEN_SCLK = 24; // 物理编号 18
-constexpr int SCREEN_BLA = 12;  // 物理编号 32
-
-constexpr int K_ROW0 = 4;  // 物理编号 7
-constexpr int K_ROW1 = 17; // 物理编号 11
-constexpr int K_ROW2 = 27; // 物理编号 13
-constexpr int K_ROW3 = 22; // 物理编号 15
-constexpr int K_COL0 = 5;  // 物理编号 29
-constexpr int K_COL1 = 6;  // 物理编号 31
-constexpr int K_COL2 = 13; // 物理编号 33
-constexpr int K_COL3 = 26; // 物理编号 37
-
-constexpr const char *K_CONSUMER = "keyboard";
-
-constexpr int K_LOW = 0;
-constexpr int K_HIGH = 1;
-
-enum class Event
-{
-    Key1,
-    Key2,
-    Key3,
-    Key4,
-    Key5,
-    Key6,
-    Key7,
-    Key8,
-    Key9,
-    Up,
-    Down,
-    Left,
-    Right,
-    Back,
-    None
-};
 
 int main()
 {
@@ -84,6 +30,7 @@ int main()
 #endif
               << "\n版权所有 © 2020-2021 NKID00\n使用 MIT License 进行许可\n"
               << std::endl;
+
     g_info("载入字体");
     auto font_f = std::fopen("unifont.bin", "r");
     font = reinterpret_cast<std::uint8_t *>(std::malloc(sizeof(uint8_t) * 16 * 16 * 65536 / 8));

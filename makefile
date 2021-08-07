@@ -1,4 +1,4 @@
-.PHONY: build run build-debug debug clean
+.PHONY: build run build-dbg dbg clean
 
 build:
 	mkdir -p src/build/
@@ -7,11 +7,11 @@ build:
 run: build
 	./src/build/NK_PMD00
 
-build-debug:
+build-dbg:
 	mkdir -p src/build/
-	$(MAKE) -C ui/ build-debug
+	$(MAKE) -C ui/ build-dbg
 
-debug: build_debug
+dbg: build_dbg
 	gdb ./src/build/NK_PMD00-dbg
 
 clean:

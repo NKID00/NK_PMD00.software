@@ -151,4 +151,7 @@ unifont.bin
 include/
 
 # Builds
-ui/build/
+build/
+
+# VS Code
+.vscode/
